@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://almoxarifado-efz1.onrender.com",
+  baseURL: "https://almoxarifado-backend.vercel.app",
 });
 
 export default api;
