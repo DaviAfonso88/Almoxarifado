@@ -1,9 +1,7 @@
 import express from "express";
 import cors from "cors";
 import pkg from "pg";
-import dotenv from "dotenv";
 
-dotenv.config();
 const { Pool } = pkg;
 
 const app = express();
@@ -11,58 +9,23 @@ app.use(cors());
 app.use(express.json());
 
 // ================== POOL SUPABASE ==================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 20000,
-});
-
-// ================== RETRY DE CONEXÃO ==================
-async function connectWithRetry(retries = 10, delay = 5000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await pool.connect();
-      console.log("✅ Conectado ao Supabase!");
-      return;
-    } catch (err) {
-      console.error(`Tentativa ${i + 1} falhou: ${err.code || err.message}`);
-      if (i < retries - 1) {
-        console.log(`Tentando novamente em ${delay / 1000}s...`);
-        await new Promise((res) => setTimeout(res, delay));
-      } else {
-        console.error("❌ Não foi possível conectar após várias tentativas.");
-      }
-    }
-  }
+// Singleton pool para serverless
+let pool;
+if (!global.pgPool) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 5,
+  });
+  global.pgPool = pool;
+} else {
+  pool = global.pgPool;
 }
 
-// Executa conexão inicial
-connectWithRetry();
-
-// ================== RECONEXÃO AUTOMÁTICA ==================
-pool.on("error", async (err) => {
-  console.error("💥 Pool error:", err.code || err.message);
-  console.log("🔄 Tentando reconectar...");
-  await connectWithRetry();
-});
-
-// ================== KEEP-ALIVE PING ==================
-setInterval(async () => {
-  try {
-    await pool.query("SELECT 1");
-    console.log("💓 Keep-alive ping enviado");
-  } catch (err) {
-    console.error("❌ Erro no ping:", err.code || err.message);
-    await connectWithRetry();
-  }
-}, 5 * 60 * 1000);
-
 // ================== CRIAÇÃO DE TABELAS ==================
-(async () => {
+async function createTables() {
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -79,12 +42,13 @@ setInterval(async () => {
         name TEXT UNIQUE
       )
     `);
-    console.log("✅ Tabelas criadas com sucesso!");
+  } finally {
     client.release();
-  } catch (err) {
-    console.error("❌ Erro ao criar tabelas:", err.code || err.message);
   }
-})();
+}
+
+// Chama criação de tabelas uma vez por deploy
+createTables().catch((err) => console.error("Erro ao criar tabelas:", err));
 
 // ================== ROTAS ==================
 
@@ -144,6 +108,5 @@ app.delete("/categories/:id", async (req, res) => {
   res.sendStatus(204);
 });
 
-// ================== SERVIDOR ==================
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+// ================== EXPORT PARA VERCEL ==================
+export default app;
