@@ -141,7 +141,7 @@ export default function DashboardProducts() {
                 key={p.id}
                 className="list-group-item d-flex justify-content-between align-items-center text-danger fw-semibold"
               >
-                {p.name} (Qtd: {p.quantity} / Min: {p.minStock})
+                {p.name} (Qtd: {p.quantity} / Min: {p.minstock})
               </li>
             ))}
           </ul>
