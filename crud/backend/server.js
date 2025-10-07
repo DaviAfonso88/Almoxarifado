@@ -1,23 +1,51 @@
 import express from "express";
 import cors from "cors";
 import pkg from "pg";
+import dotenv from "dotenv";
 
+dotenv.config();
 const { Pool } = pkg;
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
 // ================== CONEXÃO COM SUPABASE ==================
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL, // usa a URI completa do Render
   ssl: { rejectUnauthorized: false },
+  max: 10, // máximo de conexões no pool
 });
+
+// ================== FUNÇÃO DE RETRY ==================
+async function connectWithRetry(retries = 5, delay = 3000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await pool.connect();
+      console.log("✅ Conectado com sucesso ao Supabase!");
+      return;
+    } catch (err) {
+      console.error(`Tentativa ${i + 1} falhou: ${err.code || err.message}`);
+      if (i < retries - 1) {
+        console.log(`Tentando novamente em ${delay / 1000}s...`);
+        await new Promise((res) => setTimeout(res, delay));
+      } else {
+        console.error(
+          "❌ Não foi possível conectar ao banco após várias tentativas."
+        );
+        process.exit(1);
+      }
+    }
+  }
+}
+
+// Executa a conexão com retry
+connectWithRetry();
 
 // ================== CRIAÇÃO DE TABELAS ==================
 (async () => {
-  const client = await pool.connect();
   try {
+    const client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
@@ -28,19 +56,16 @@ const pool = new Pool({
         minStock INTEGER
       )
     `);
-
     await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
         name TEXT UNIQUE
       )
     `);
-
     console.log("✅ Tabelas criadas com sucesso!");
+    client.release();
   } catch (err) {
     console.error("❌ Erro ao criar tabelas:", err);
-  } finally {
-    client.release();
   }
 })();
 
