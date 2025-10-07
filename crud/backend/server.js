@@ -10,19 +10,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ================== CONEXÃO COM SUPABASE ==================
+// ================== POOL SUPABASE ==================
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // usa a URI completa do Render
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 10, // máximo de conexões no pool
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 20000,
 });
 
-// ================== FUNÇÃO DE RETRY ==================
-async function connectWithRetry(retries = 5, delay = 3000) {
+// ================== RETRY DE CONEXÃO ==================
+async function connectWithRetry(retries = 10, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
       await pool.connect();
-      console.log("✅ Conectado com sucesso ao Supabase!");
+      console.log("✅ Conectado ao Supabase!");
       return;
     } catch (err) {
       console.error(`Tentativa ${i + 1} falhou: ${err.code || err.message}`);
@@ -30,17 +32,32 @@ async function connectWithRetry(retries = 5, delay = 3000) {
         console.log(`Tentando novamente em ${delay / 1000}s...`);
         await new Promise((res) => setTimeout(res, delay));
       } else {
-        console.error(
-          "❌ Não foi possível conectar ao banco após várias tentativas."
-        );
-        process.exit(1);
+        console.error("❌ Não foi possível conectar após várias tentativas.");
       }
     }
   }
 }
 
-// Executa a conexão com retry
+// Executa conexão inicial
 connectWithRetry();
+
+// ================== RECONEXÃO AUTOMÁTICA ==================
+pool.on("error", async (err) => {
+  console.error("💥 Pool error:", err.code || err.message);
+  console.log("🔄 Tentando reconectar...");
+  await connectWithRetry();
+});
+
+// ================== KEEP-ALIVE PING ==================
+setInterval(async () => {
+  try {
+    await pool.query("SELECT 1");
+    console.log("💓 Keep-alive ping enviado");
+  } catch (err) {
+    console.error("❌ Erro no ping:", err.code || err.message);
+    await connectWithRetry();
+  }
+}, 5 * 60 * 1000);
 
 // ================== CRIAÇÃO DE TABELAS ==================
 (async () => {
@@ -65,7 +82,7 @@ connectWithRetry();
     console.log("✅ Tabelas criadas com sucesso!");
     client.release();
   } catch (err) {
-    console.error("❌ Erro ao criar tabelas:", err);
+    console.error("❌ Erro ao criar tabelas:", err.code || err.message);
   }
 })();
 
@@ -80,7 +97,7 @@ app.get("/products", async (req, res) => {
 app.post("/products", async (req, res) => {
   const { name, quantity, category, unit, minStock } = req.body;
   const result = await pool.query(
-    "INSERT INTO products (name, quantity, category, unit, minStock) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+    "INSERT INTO products (name, quantity, category, unit, minStock) VALUES ($1,$2,$3,$4,$5) RETURNING *",
     [name, quantity, category, unit, minStock]
   );
   res.json(result.rows[0]);
