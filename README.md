@@ -138,7 +138,7 @@ A seção **Dashboard de Produtos** fornece uma visão geral do almoxarifado com
 ## 👨‍💻 Autor
 
 **Desenvolvido por [Davi Afonso](https://portfolio-davi-afonso.netlify.app/)**  
-💼 Desenvolvedor Full Stack | 💡 Entusiasta em soluções para igrejas e comunidades  
+💼 Desenvolvedor Full Stack
 
 🌐 **Portfólio:** [https://portfolio-davi-afonso.netlify.app/](https://portfolio-davi-afonso.netlify.app/)  
 📍 **Projeto desenvolvido para:** Primeira Igreja Batista em Lagoa Santa (PIBLS)
