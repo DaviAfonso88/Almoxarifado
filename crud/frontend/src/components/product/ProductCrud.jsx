@@ -3,6 +3,9 @@ import api from "../service/api";
 import { Main } from "../template/Main";
 import "../template/Modal.css";
 import "../../main/App.css";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { motion, AnimatePresence } from "framer-motion";
 
 const headerProps = {
   icon: "tags",
@@ -28,17 +31,21 @@ export default function ProductCrud() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/products").then((resp) => {
-      const products = resp.data.map((p) => ({
-        ...p,
-        minStock: p.minstock,
-      }));
-      setList(products);
-    });
-
-    api.get("/categories").then((resp) => setCategories(resp.data));
+    setLoading(true);
+    Promise.all([api.get("/products"), api.get("/categories")])
+      .then(([productsResp, categoriesResp]) => {
+        const products = productsResp.data.map((p) => ({
+          ...p,
+          minStock: p.minstock,
+        }));
+        setList(products);
+        setCategories(categoriesResp.data);
+      })
+      .catch(() => toast.error("Erro ao carregar produtos ou categorias"))
+      .finally(() => setLoading(false));
   }, []);
 
   function load(product) {
@@ -47,6 +54,7 @@ export default function ProductCrud() {
 
   function clear() {
     setProduct(initialProduct);
+    setErrors(initialProduct);
   }
 
   function confirmRemove(product) {
@@ -86,19 +94,24 @@ export default function ProductCrud() {
   }
 
   async function save() {
-    if (!validate()) return;
+    if (!validate()) {
+      toast.warning("Preencha todos os campos obrigatórios corretamente.");
+      return;
+    }
 
     try {
       if (product.id) {
         const { data } = await api.put(`/products/${product.id}`, product);
         setList((resp) => [data, ...resp.filter((p) => p.id !== product.id)]);
+        toast.success("Produto atualizado com sucesso!");
       } else {
         const { data } = await api.post("/products", product);
         setList((resp) => [data, ...resp]);
+        toast.success("Produto cadastrado com sucesso!");
       }
       clear();
     } catch (err) {
-      console.error("Erro:", err);
+      toast.error("Erro ao salvar o produto.");
     }
   }
 
@@ -106,8 +119,9 @@ export default function ProductCrud() {
     try {
       await api.delete(`/products/${productToDelete.id}`);
       setList((resp) => resp.filter((p) => p.id !== productToDelete.id));
+      toast.info("Produto excluído com sucesso!");
     } catch (err) {
-      console.error("Erro:", err);
+      toast.error("Erro ao excluir o produto.");
     } finally {
       setShowConfirm(false);
       setProductToDelete(null);
@@ -149,9 +163,12 @@ export default function ProductCrud() {
 
   function renderForm() {
     return (
-      <div
+      <motion.div
         className="card p-4 mb-4 shadow-sm"
         style={{ borderRadius: "12px", background: "#fff" }}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
       >
         <h5
           className="mb-4"
@@ -164,6 +181,7 @@ export default function ProductCrud() {
         >
           Cadastro de Produto
         </h5>
+
         <div className="row g-3">
           {/* Nome */}
           <div className="col-12 col-md-6">
@@ -266,22 +284,36 @@ export default function ProductCrud() {
           </div>
         </div>
 
-        <div className="mt-4 d-flex justify-content-end gap-2">
-          <button className="btn btn-primary btn-lg" onClick={save}>
+        <motion.div
+          className="mt-4 d-flex justify-content-end gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="btn btn-primary btn-lg"
+            onClick={save}
+          >
             Salvar
-          </button>
-          <button className="btn btn-outline-secondary btn-lg" onClick={clear}>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="btn btn-outline-secondary btn-lg"
+            onClick={clear}
+          >
             Cancelar
-          </button>
-        </div>
-      </div>
+          </motion.button>
+        </motion.div>
+      </motion.div>
     );
   }
 
   function renderTable() {
     return (
       <>
-        {/* Pesquisa */}
         <div className="mb-3">
           <input
             type="text"
@@ -293,7 +325,6 @@ export default function ProductCrud() {
           />
         </div>
 
-        {/* Tabela */}
         <div className="table-responsive shadow rounded">
           <table className="table align-middle table-hover mb-0">
             <thead
@@ -315,50 +346,56 @@ export default function ProductCrud() {
               </tr>
             </thead>
             <tbody>
-              {filteredList.map((p, index) => (
-                <tr
-                  key={p.id}
-                  className={index % 2 === 0 ? "bg-light" : "bg-white"}
-                  style={{ transition: "all 0.2s" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor = "#e6f7f5")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      index % 2 === 0 ? "#f8f9fa" : "#fff")
-                  }
-                >
-                  <td>{p.id}</td>
-                  <td>{highlightText(p.name, search)}</td>
-                  <td>{highlightText(p.unit, search)}</td>
-                  <td>{highlightText(p.category, search)}</td>
-                  <td
-                    style={{
-                      color: p.quantity <= p.minStock ? "#dc3545" : "#212529",
-                      fontWeight: p.quantity <= p.minStock ? "600" : "400",
-                    }}
+              <AnimatePresence>
+                {filteredList.map((p, index) => (
+                  <motion.tr
+                    key={p.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className={index % 2 === 0 ? "bg-light" : "bg-white"}
+                    style={{ transition: "all 0.2s" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#e6f7f5")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor =
+                        index % 2 === 0 ? "#f8f9fa" : "#fff")
+                    }
                   >
-                    {highlightText(p.quantity, search)}
-                  </td>
-                  <td>{highlightText(p.minStock, search)}</td>
-                  <td className="d-flex gap-2 justify-content-center">
-                    <button
-                      className="btn btn-sm btn-info shadow-sm"
-                      onClick={() => load(p)}
-                      title="Editar"
+                    <td>{p.id}</td>
+                    <td>{highlightText(p.name, search)}</td>
+                    <td>{highlightText(p.unit, search)}</td>
+                    <td>{highlightText(p.category, search)}</td>
+                    <td
+                      style={{
+                        color: p.quantity <= p.minStock ? "#dc3545" : "#212529",
+                        fontWeight: p.quantity <= p.minStock ? "600" : "400",
+                      }}
                     >
-                      <i className="fa fa-pencil"></i>
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger shadow-sm"
-                      onClick={() => confirmRemove(p)}
-                      title="Excluir"
-                    >
-                      <i className="fa fa-trash"></i>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      {highlightText(p.quantity, search)}
+                    </td>
+                    <td>{highlightText(p.minStock, search)}</td>
+                    <td className="d-flex gap-2 justify-content-center">
+                      <button
+                        className="btn btn-sm btn-info shadow-sm"
+                        onClick={() => load(p)}
+                        title="Editar"
+                      >
+                        <i className="fa fa-pencil"></i>
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger shadow-sm"
+                        onClick={() => confirmRemove(p)}
+                        title="Excluir"
+                      >
+                        <i className="fa fa-trash"></i>
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
             </tbody>
           </table>
         </div>
@@ -370,31 +407,68 @@ export default function ProductCrud() {
     if (!showConfirm) return null;
 
     return (
-      <div className="modal-overlay">
-        <div className="modal-card">
+      <motion.div
+        className="modal-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
+        <motion.div
+          className="modal-card"
+          initial={{ scale: 0.8 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 200 }}
+        >
           <h5>Confirmação</h5>
           <p>Deseja realmente excluir o produto "{productToDelete.name}"?</p>
           <div className="modal-actions">
-            <button className="btn btn-danger" onClick={removeConfirmed}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              className="btn btn-danger"
+              onClick={removeConfirmed}
+            >
               Excluir
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
               className="btn btn-secondary"
               onClick={() => setShowConfirm(false)}
             >
               Cancelar
-            </button>
+            </motion.button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
   return (
     <Main {...headerProps}>
-      {renderForm()}
-      {renderTable()}
-      <ConfirmModal />
+      <ToastContainer theme="light" position="bottom-right" />
+
+      {loading ? (
+        <motion.div
+          className="d-flex justify-content-center align-items-center"
+          style={{ height: "60vh" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.div
+            className="spinner-border text-primary"
+            role="status"
+            style={{ width: 60, height: 60 }}
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1 }}
+          >
+            <span className="visually-hidden">Loading...</span>
+          </motion.div>
+        </motion.div>
+      ) : (
+        <>
+          {renderForm()}
+          {renderTable()}
+          <ConfirmModal />
+        </>
+      )}
     </Main>
   );
 }
