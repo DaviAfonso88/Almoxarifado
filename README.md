@@ -1,142 +1,150 @@
-# 📋 Projeto de Cadastro de Usuários (React + JSON Server)
+# 🏷️ Sistema de Almoxarifado PIBLS
 
-Este é um sistema de cadastro de usuários desenvolvido em **React**, utilizando **JSON Server** como backend fake para persistência dos dados.
-O objetivo é exemplificar a construção de um CRUD completo com validações, formulários e tabelas.
-
-A aplicação permite **cadastrar, listar, editar e excluir** usuários de forma intuitiva, mantendo os dados sincronizados com uma API.
+O **Sistema de Almoxarifado da Primeira Igreja Batista em Lagoa Santa (PIBLS)** foi desenvolvido para otimizar o controle de produtos, categorias e relatórios de estoque da instituição.  
+A aplicação permite **cadastro, edição, exclusão e listagem** de produtos e categorias, além de uma área de **dashboard com gráficos e exportação de relatórios em CSV e PDF**.
 
 ---
 
-## ✨ Funcionalidades
-
-* ✅ Listagem de usuários
-* ➕ Cadastro de novos usuários
-* ✏️ Edição de usuários existentes
-* 🗑️ Exclusão de usuários com modal de confirmação
-* ⚠️ Validação de campos obrigatórios (nome e e-mail)
-* 🎨 Layout responsivo e estilizado com **Bootstrap + CSS customizado**
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-* [React](https://react.dev/) (Hooks, JSX, componentização)
-* [React Router](https://reactrouter.com/) (navegação entre páginas)
-* [Axios](https://axios-http.com/) (requisições HTTP)
-* [JSON Server](https://github.com/typicode/json-server) (API fake para CRUD)
-* [Bootstrap](https://getbootstrap.com/) + CSS customizado
-* [Font Awesome](https://fontawesome.com/) (ícones)
+## 📑 Sumário
+- [🚀 Tecnologias Utilizadas](#-tecnologias-utilizadas)
+- [🗃️ Banco de Dados](#️-banco-de-dados)
+- [📊 Aba de Relatórios (Dashboard)](#-aba-de-relatórios-dashboard)
+- [⚙️ Rotas da API](#️-rotas-da-api)
+- [📦 Funcionalidades Principais](#️-funcionalidades-principais)
+- [🌐 Deploy](#-deploy)
+- [👨‍💻 Autor](#-autor)
 
 ---
 
-## 📂 Estrutura do projeto
+## 🚀 Tecnologias Utilizadas
 
-* `UserCrud.js` → Componente principal do CRUD de usuários
-* `api.js` → Configuração do Axios para comunicação com a API
-* `Main.js` → Template principal da aplicação
-* `Modal.css` → Estilos customizados do modal de confirmação
+### **Back-End**
+- **Node.js** com **Express**
+- **PostgreSQL** (hospedado no **Supabase**)
+- **pg** para conexão com o banco de dados
+- **dotenv** para variáveis de ambiente
+- **CORS** para comunicação com o front-end
 
----
-
-## 🧑‍💻 Seção especial: UserCrud.js
-
-O arquivo **UserCrud.js** é o coração do projeto. Ele implementa todo o **CRUD de usuários**:
-
-### 🔹 Principais estados
-
-* `user` → armazena os dados do formulário (nome e email).
-* `list` → lista de usuários vinda da API.
-* `errors` → mensagens de validação dos campos obrigatórios.
-* `showConfirm` → controla se o modal de exclusão será exibido.
-* `userToDelete` → guarda o usuário selecionado para exclusão.
-
-### 🔹 Funcionalidades
-
-* **Create / Update (POST / PUT)** → salva novos usuários ou edita existentes.
-* **Read (GET)** → carrega todos os usuários na tabela.
-* **Delete (DELETE)** → remove usuários após confirmação no modal.
-* **Validação** → garante que nome e email sejam preenchidos antes de salvar.
-* **UX/UI** → inputs com feedback visual, botões estilizados e modal de confirmação.
-
-### 🔹 Fluxo resumido
-
-1. Usuário preenche o formulário e clica em **Salvar**.
-2. Os dados são validados → se ok, enviados para a API.
-3. A lista de usuários (`list`) é atualizada em tela **sem precisar recarregar**.
-4. Para excluir, o usuário clica no ícone de lixeira → abre o modal.
-5. Após confirmar, o item é removido da API e da tabela.
+### **Front-End**
+- **React.js** com Hooks (`useState`, `useEffect`)
+- **Chart.js** e **react-chartjs-2** para gráficos
+- **Framer Motion** para animações
+- **React Toastify** para notificações
+- **jsPDF** e **jspdf-autotable** para geração de relatórios PDF
+- **file-saver** para exportação de arquivos CSV
+- **Bootstrap** e **React Icons** para estilização
 
 ---
 
-## 🚀 Como Rodar o Projeto
+## 🗃️ Banco de Dados
 
-### 1. Clonar o repositório
+O banco de dados é composto por **duas tabelas principais**:
 
-```bash
-git clone https://github.com/seu-usuario/seu-repositorio.git
-cd seu-repositorio
+### **1. products**
+Armazena os dados dos produtos cadastrados no almoxarifado.
+
+| Campo       | Tipo     | Descrição                          |
+|--------------|----------|------------------------------------|
+| id           | SERIAL   | Identificador único do produto     |
+| name         | TEXT     | Nome do produto                    |
+| quantity     | INTEGER  | Quantidade atual em estoque        |
+| category     | TEXT     | Categoria do produto               |
+| unit         | TEXT     | Unidade de medida (ex: caixa, kg)  |
+| minStock     | INTEGER  | Estoque mínimo recomendado         |
+
+### **2. categories**
+Controla as categorias disponíveis para os produtos.
+
+| Campo | Tipo   | Descrição              |
+|--------|--------|------------------------|
+| id     | SERIAL | Identificador único    |
+| name   | TEXT   | Nome da categoria (único) |
+
+A conexão é feita por meio de um **pool de conexões Singleton** para evitar sobrecarga em ambientes **serverless (como Vercel)**:
+
+```javascript
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+});
 ```
 
-### 2. Instalar dependências do backend
+## 📊 Aba de Relatórios (Dashboard)
 
-```bash
-cd backend
-npm install
-```
+A seção **Dashboard de Produtos** fornece uma visão geral do almoxarifado com **gráficos, estatísticas e exportações**.
 
-### 3. Iniciar o servidor fake (JSON Server)
+### **Funcionalidades principais**
+- Exibição do **total de produtos cadastrados**
+- Identificação dos produtos **abaixo do estoque mínimo**
+- **Gráfico de barras** comparando quantidade atual x estoque mínimo
+- **Exportação de relatórios**:
+  - **CSV** (para planilhas)
+  - **PDF** (com destaque em vermelho para produtos críticos)
+- **Animações suaves** e **notificações visuais**
+- **Interface responsiva e moderna**, feita com **Bootstrap + Framer Motion**
 
-```bash
-npm start
-```
+### **Exemplo de dados exportados (CSV ou PDF):**
 
-O backend estará rodando em **[http://localhost:3001](http://localhost:3001)**
+| ID | Nome | Unidade | Categoria | Quantidade | Estoque Mínimo |
+|----|------|----------|------------|-------------|----------------|
+| 1 | Papel A4 | Caixa | Escritório | 10 | 5 |
+| 2 | Copos Plásticos | Unidade | Cozinha | 3 | 5 |
 
-### 4. Instalar dependências do frontend
+### **Gráfico de exemplo:**
+![Gráfico de Estoque](./docs/grafico-exemplo.png)
 
-```bash
-cd ..
-npm install
-```
+### **Interface do Dashboard:**
+![Interface do Dashboard](./docs/dashboard-exemplo.png)
 
-### 5. Rodar o frontend
-
-```bash
-npm start
-```
-
-O frontend estará disponível em **[http://localhost:3000](http://localhost:3000)**
-
----
-
-## 📸 Prints da aplicação
-
-### 📝 Formulário de Cadastro/Home
-
-<img width="1913" height="1070" alt="image" src="https://github.com/user-attachments/assets/69ecd0df-3fcd-4527-a1ea-882809ad7ca5" />
-
-
-### 📋 Tabela de Usuários
-
-<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/d7c8515d-d555-4bd1-ab5d-2227fddd7eb2" />
-
-
-### ❌ Modal de Confirmação
-
-<img width="1919" height="1079" alt="image" src="https://github.com/user-attachments/assets/46e821f9-ba11-4c09-8a7d-c03877d0d17b" />
+> As imagens acima são exemplos. Você pode substituí-las por capturas reais da sua aplicação, salvas na pasta `/docs`.
 
 ---
 
-## 👨‍💻 Desenvolvido por
+## ⚙️ Rotas da API
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="#">
-         <img src="https://avatars.githubusercontent.com/u/89953265?v=4" width="100px;" alt="Foto de Davi Afonso no GitHub"/><br>
-        <sub>
-          <b>Davi Afonso</b>
-        </sub>
-      </a>
-    </td>
-</table>
+### **Produtos**
+| Método | Rota | Descrição |
+|--------|------|------------|
+| `GET` | `/products` | Lista todos os produtos |
+| `POST` | `/products` | Cadastra um novo produto |
+| `PUT` | `/products/:id` | Atualiza um produto existente |
+| `DELETE` | `/products/:id` | Remove um produto |
+
+### **Categorias**
+| Método | Rota | Descrição |
+|--------|------|------------|
+| `GET` | `/categories` | Lista todas as categorias |
+| `POST` | `/categories` | Cadastra uma nova categoria |
+| `DELETE` | `/categories/:id` | Remove uma categoria |
+
+---
+
+## 📦 Funcionalidades Principais
+
+- ✅ Cadastro, edição e exclusão de produtos
+- 📊 Controle de estoque e quantidades mínimas
+- 📁 Geração de relatórios de movimentações
+- 🔍 Busca de produtos por nome ou categoria
+- 📦 Registro de entradas e saídas
+- 🧾 Exportação de relatórios
+
+---
+
+
+## 🌐 Deploy
+
+- **Front-End:** hospedado na [Vercel](https://vercel.com)  
+- **Back-End:** hospedado na [Vercel](https://render.com)  
+- **Banco de Dados:** hospedado no [Supabase](https://supabase.com)
+
+---
+
+## 👨‍💻 Autor
+
+**Desenvolvido por [Davi Afonso](https://portfolio-davi-afonso.netlify.app/)**  
+💼 Desenvolvedor Full Stack | 💡 Entusiasta em soluções para igrejas e comunidades  
+
+🌐 **Portfólio:** [https://portfolio-davi-afonso.netlify.app/](https://portfolio-davi-afonso.netlify.app/)  
+📍 **Projeto desenvolvido para:** Primeira Igreja Batista em Lagoa Santa (PIBLS)
+
