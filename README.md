@@ -91,13 +91,8 @@ A seção **Dashboard de Produtos** fornece uma visão geral do almoxarifado com
 | 1 | Papel A4 | Caixa | Escritório | 10 | 5 |
 | 2 | Copos Plásticos | Unidade | Cozinha | 3 | 5 |
 
-### **Gráfico de exemplo:**
-![Gráfico de Estoque](./docs/grafico-exemplo.png)
-
 ### **Interface do Dashboard:**
-![Interface do Dashboard](./docs/dashboard-exemplo.png)
-
-> As imagens acima são exemplos. Você pode substituí-las por capturas reais da sua aplicação, salvas na pasta `/docs`.
+<img width="1900" height="851" alt="image" src="https://github.com/user-attachments/assets/362214a9-3c28-40d7-ba2e-e67ba22bd11d" />
 
 ---
 
