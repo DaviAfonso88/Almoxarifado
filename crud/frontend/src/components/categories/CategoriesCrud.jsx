@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaPlus, FaTrash, FaList } from "react-icons/fa";
+import { ConfirmModal } from "../modal/ConfirmModal";
 
 const headerProps = {
   icon: "th-list",
@@ -16,6 +17,8 @@ export default function CategoriesCrud() {
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
 
   useEffect(() => {
     api
@@ -40,14 +43,21 @@ export default function CategoriesCrud() {
     }
   }
 
-  async function removeCategory(id) {
-    if (!window.confirm("Deseja realmente excluir esta categoria?")) return;
+  function confirmRemove(category) {
+    setShowConfirm(true);
+    setCategoryToDelete(category);
+  }
+
+  async function removeConfirmed() {
     try {
-      await api.delete(`/categories/${id}`);
-      setCategories((prev) => prev.filter((c) => c.id !== id));
+      await api.delete(`/categories/${categoryToDelete.id}`);
+      setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete.id));
       toast.info("Categoria excluída com sucesso!");
     } catch (err) {
-      toast.error("Erro ao excluir categoria");
+      toast.error("Erro ao excluir a categoria.");
+    } finally {
+      setShowConfirm(false);
+      setCategoryToDelete(null);
     }
   }
 
@@ -128,7 +138,7 @@ export default function CategoriesCrud() {
                 <span className="fw-medium">{c.name}</span>
                 <button
                   className="btn btn-sm btn-outline-danger rounded-pill"
-                  onClick={() => removeCategory(c.id)}
+                  onClick={() => confirmRemove(c)}
                 >
                   <FaTrash className="me-1" /> Excluir
                 </button>
@@ -137,6 +147,14 @@ export default function CategoriesCrud() {
           </ul>
         )}
       </motion.div>
+
+      <ConfirmModal
+        show={showConfirm}
+        title="Confirmação"
+        message={`Deseja realmente excluir a categoria "${categoryToDelete?.name}"?`}
+        onConfirm={removeConfirmed}
+        onCancel={() => setShowConfirm(false)}
+      />
     </Main>
   );
 }

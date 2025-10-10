@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import api from "../service/api";
 import { Main } from "../template/Main";
-import "../template/Modal.css";
 import "../../main/App.css";
+import { ConfirmModal } from "../modal/ConfirmModal";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion, AnimatePresence } from "framer-motion";
@@ -406,44 +406,6 @@ export default function ProductCrud() {
     );
   }
 
-  function ConfirmModal() {
-    if (!showConfirm) return null;
-
-    return (
-      <motion.div
-        className="modal-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <motion.div
-          className="modal-card"
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 200 }}
-        >
-          <h5>Confirmação</h5>
-          <p>Deseja realmente excluir o produto "{productToDelete.name}"?</p>
-          <div className="modal-actions">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              className="btn btn-danger"
-              onClick={removeConfirmed}
-            >
-              Excluir
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              className="btn btn-secondary"
-              onClick={() => setShowConfirm(false)}
-            >
-              Cancelar
-            </motion.button>
-          </div>
-        </motion.div>
-      </motion.div>
-    );
-  }
-
   return (
     <Main {...headerProps}>
       <ToastContainer theme="light" position="top-center" />
@@ -469,7 +431,13 @@ export default function ProductCrud() {
         <>
           {renderForm()}
           {renderTable()}
-          <ConfirmModal />
+          <ConfirmModal
+            show={showConfirm}
+            title="Confirmação"
+            message={`Deseja realmente excluir o produto "${productToDelete?.name}"?`}
+            onConfirm={removeConfirmed}
+            onCancel={() => setShowConfirm(false)}
+          />
         </>
       )}
     </Main>

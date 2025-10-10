@@ -24,7 +24,9 @@ import {
 import { motion } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import logo from "../../assets/imgs/logo.png";
 
+// === Registro dos módulos ===
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -34,6 +36,25 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+// === Padronização global de estilo dos gráficos ===
+ChartJS.defaults.font.family = "Inter, sans-serif";
+ChartJS.defaults.font.size = 13;
+ChartJS.defaults.color = "#444";
+ChartJS.defaults.borderColor = "rgba(0,0,0,0.05)";
+ChartJS.defaults.plugins.legend.labels.font = {
+  family: "Inter, sans-serif",
+  size: 13,
+};
+ChartJS.defaults.plugins.tooltip.bodyFont = {
+  family: "Inter, sans-serif",
+  size: 13,
+};
+ChartJS.defaults.plugins.title.font = {
+  family: "Inter, sans-serif",
+  size: 18,
+  weight: "bold",
+};
 
 const headerProps = {
   icon: "bar-chart",
@@ -48,12 +69,8 @@ export default function DashboardProducts() {
   useEffect(() => {
     api
       .get("/products")
-      .then((resp) => {
-        setList(resp.data);
-      })
-      .catch(() => {
-        toast.error("Erro ao carregar dados!");
-      })
+      .then((resp) => setList(resp.data))
+      .catch(() => toast.error("Erro ao carregar dados!"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -64,6 +81,15 @@ export default function DashboardProducts() {
     ? ((lowStockCount / totalProducts) * 100).toFixed(1)
     : 0;
 
+  // 🎨 Paleta de cores moderna
+  const colors = {
+    primary: "rgba(60,138,127,0.85)",
+    secondary: "rgba(23,162,184,0.85)",
+    warning: "rgba(255,193,7,0.85)",
+    danger: "rgba(220,53,69,0.85)",
+    neutral: "rgba(180,180,180,0.4)",
+  };
+
   // === Gráfico principal: Quantidade x Estoque mínimo ===
   const chartData = {
     labels: list.map((p) => p.name),
@@ -72,16 +98,17 @@ export default function DashboardProducts() {
         label: "Quantidade atual",
         data: list.map((p) => p.quantity),
         backgroundColor: list.map((p) =>
-          p.quantity <= p.minstock
-            ? "rgba(220, 53, 69, 0.8)"
-            : "rgba(60, 138, 127, 0.8)"
+          p.quantity <= p.minstock ? colors.danger : colors.primary
         ),
         borderRadius: 8,
+        hoverBackgroundColor: list.map((p) =>
+          p.quantity <= p.minstock ? "rgba(220,53,69,1)" : "rgba(60,138,127,1)"
+        ),
       },
       {
         label: "Estoque mínimo",
         data: list.map((p) => p.minstock),
-        backgroundColor: "rgba(180, 180, 180, 0.4)",
+        backgroundColor: colors.neutral,
         borderRadius: 8,
       },
     ],
@@ -89,12 +116,34 @@ export default function DashboardProducts() {
 
   const chartOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" },
+      legend: {
+        position: "bottom",
+        labels: {
+          color: "#444",
+          boxWidth: 15,
+        },
+      },
       title: {
         display: true,
         text: "Comparativo de Estoque",
-        font: { size: 16, weight: "bold" },
+        color: "#2c3e50",
+        padding: { top: 10, bottom: 30 },
+      },
+      tooltip: {
+        backgroundColor: "rgba(0,0,0,0.8)",
+        cornerRadius: 8,
+      },
+    },
+    scales: {
+      x: {
+        ticks: { color: "#555" },
+        grid: { color: "rgba(0,0,0,0.05)" },
+      },
+      y: {
+        ticks: { color: "#555" },
+        grid: { color: "rgba(0,0,0,0.05)" },
       },
     },
   };
@@ -112,14 +161,30 @@ export default function DashboardProducts() {
         label: "Tipos de produtos",
         data: Object.values(categoryCounts),
         backgroundColor: [
-          "rgba(60,138,127,0.8)",
-          "rgba(23,162,184,0.8)",
-          "rgba(255,193,7,0.8)",
-          "rgba(220,53,69,0.8)",
-          "rgba(108,117,125,0.8)",
+          colors.primary,
+          colors.secondary,
+          colors.warning,
+          colors.danger,
+          "rgba(108,117,125,0.85)",
         ],
+        borderWidth: 2,
+        borderColor: "#fff",
+        hoverOffset: 12,
       },
     ],
+  };
+
+  const categoryOptions = {
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+      },
+      tooltip: {
+        backgroundColor: "rgba(0,0,0,0.85)",
+        cornerRadius: 8,
+      },
+    },
   };
 
   // === Gráfico de barras: Quantidade total por categoria ===
@@ -133,97 +198,75 @@ export default function DashboardProducts() {
             .filter((p) => p.category === cat)
             .reduce((sum, p) => sum + Number(p.quantity || 0), 0)
         ),
-        backgroundColor: "rgba(60,138,127,0.8)",
+        backgroundColor: colors.secondary,
         borderRadius: 8,
+        hoverBackgroundColor: "rgba(23,162,184,1)",
       },
     ],
   };
 
-  function exportCSV(options = {}) {
+  const quantityOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      title: {
+        display: true,
+        text: "Quantidade Total por Categoria",
+        color: "#2c3e50",
+        padding: { bottom: 30 },
+      },
+    },
+  };
+
+  // === Exportar CSV ===
+  function exportCSV() {
     try {
       if (!list || !list.length) {
         toast.error("Não há dados para exportar!");
         return;
       }
 
-      // Configurações opcionais
-      const {
-        columns = [
-          { key: "id", label: "ID" },
-          { key: "name", label: "Nome" },
-          { key: "unit", label: "Unidade" },
-          { key: "category", label: "Categoria" },
-          { key: "quantity", label: "Quantidade" },
-          { key: "minstock", label: "Estoque mínimo" },
-        ],
-        filename = "produtos.csv",
-      } = options;
-
-      const escapeCSV = (value) => {
-        if (value === null || value === undefined) return "";
-        let stringValue;
-
-        if (typeof value === "number") {
-          stringValue = value.toLocaleString("pt-BR");
-        } else if (value instanceof Date) {
-          stringValue = value.toLocaleDateString("pt-BR");
-        } else {
-          stringValue = value.toString();
-        }
-
-        return /[;"\n]/.test(stringValue)
-          ? `"${stringValue.replace(/"/g, '""')}"`
-          : stringValue;
-      };
+      const columns = [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Nome" },
+        { key: "unit", label: "Unidade" },
+        { key: "category", label: "Categoria" },
+        { key: "quantity", label: "Quantidade" },
+        { key: "minstock", label: "Estoque mínimo" },
+      ];
 
       const rows = list.map((item) =>
-        columns.map((col) => {
-          if (col.key === "createdAt")
-            return item.createdAt ? new Date(item.createdAt) : "";
-          return item[col.key];
-        })
+        columns.map((col) => item[col.key] ?? "")
       );
 
-      const totalQuantity = list.reduce(
-        (acc, item) => acc + (item.quantity || 0),
-        0
-      );
-      const totalMinStock = list.reduce(
-        (acc, item) => acc + (item.minstock || 0),
-        0
-      );
-      const summaryRow = columns.map((col) => {
-        if (col.key === "quantity") return totalQuantity;
-        if (col.key === "minstock") return totalMinStock;
-        return "";
-      });
-
-      // Montar CSV final
-      const csvContent = [
-        columns.map((col) => col.label), // cabeçalho
-        ...rows,
-        summaryRow, // resumo no final
-      ]
-        .map((row) => row.map(escapeCSV).join(";"))
+      const csvContent = [columns.map((col) => col.label), ...rows]
+        .map((r) => r.join(";"))
         .join("\n");
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-      saveAs(blob, filename);
-
-      toast.success("Arquivo CSV exportado com sucesso!");
-    } catch (error) {
-      console.error(error);
+      saveAs(blob, "produtos.csv");
+      toast.success("CSV exportado com sucesso!");
+    } catch (err) {
+      console.error(err);
       toast.error("Erro ao exportar CSV!");
     }
   }
 
+  // === Exportar PDF ===
   function exportPDF() {
     try {
       const doc = new jsPDF("p", "mm", "a4");
 
-      // Cabeçalho
-      doc.setFillColor(4, 53, 70);
+      doc.setFillColor(106, 197, 214);
       doc.rect(0, 0, doc.internal.pageSize.getWidth(), 30, "F");
+
+      const imgWidth = 25;
+      const imgHeight = 25;
+      const marginLeft = 14;
+      const marginTop = 3;
+      doc.addImage(logo, "PNG", marginLeft, marginTop, imgWidth, imgHeight);
+
+      // Cabeçalho
       doc.setFontSize(16);
       doc.setTextColor(255);
       doc.setFont("helvetica", "bold");
@@ -256,7 +299,7 @@ export default function DashboardProducts() {
         ],
         body: tableData,
         styles: { fontSize: 9 },
-        headStyles: { fillColor: [4, 53, 70] },
+        headStyles: { fillColor: [106, 197, 214] },
         alternateRowStyles: { fillColor: [245, 245, 245] },
         didParseCell: function (data) {
           if (data.section === "body" && data.column.index === 4) {
@@ -352,7 +395,7 @@ export default function DashboardProducts() {
         </div>
       </motion.div>
 
-      {/* Lista de produtos com estoque baixo */}
+      {/* Lista de produtos com estoque crítico */}
       {lowStockCount > 0 && (
         <motion.div
           className="mb-4"
@@ -377,7 +420,7 @@ export default function DashboardProducts() {
         </motion.div>
       )}
 
-      {/* Botões de exportação */}
+      {/* Botões */}
       <motion.div
         className="mb-4 d-flex gap-3 flex-wrap"
         initial={{ opacity: 0, y: 10 }}
@@ -403,21 +446,18 @@ export default function DashboardProducts() {
 
       {/* Gráfico principal */}
       <motion.div
-        className="shadow p-3 rounded-4 bg-white mb-4"
+        className="shadow-lg p-4 rounded-4 bg-white mb-4"
         style={{
           width: "100%",
           maxWidth: "1600px",
           margin: "0 auto",
-          height: "400px",
+          height: "420px",
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
-        <Bar
-          data={chartData}
-          options={{ ...chartOptions, maintainAspectRatio: false }}
-        />
+        <Bar data={chartData} options={chartOptions} />
       </motion.div>
 
       {/* Gráficos lado a lado */}
@@ -429,31 +469,22 @@ export default function DashboardProducts() {
       >
         <div className="col-12 col-lg-6">
           <div
-            className="shadow p-4 rounded-4 bg-white"
-            style={{ width: "100%", height: "350px" }}
+            className="shadow-lg p-4 rounded-4 bg-white"
+            style={{ width: "100%", height: "370px" }}
           >
-            <h6 className="fw-semibold mb-3 text-center">
+            <h6 className="fw-semibold mb-3 text-center text-secondary">
               Distribuição de Produtos por Categoria
             </h6>
-            <Doughnut
-              data={categoryData}
-              options={{ maintainAspectRatio: false }}
-            />
+            <Doughnut data={categoryData} options={categoryOptions} />
           </div>
         </div>
 
         <div className="col-12 col-lg-6">
           <div
-            className="shadow p-3 rounded-4 bg-white"
-            style={{ width: "100%", height: "350px" }}
+            className="shadow-lg p-4 rounded-4 bg-white"
+            style={{ width: "100%", height: "370px" }}
           >
-            <h6 className="fw-semibold mb-3 text-center">
-              Quantidade Total por Categoria
-            </h6>
-            <Bar
-              data={quantityByCategory}
-              options={{ maintainAspectRatio: false }}
-            />
+            <Bar data={quantityByCategory} options={quantityOptions} />
           </div>
         </div>
       </motion.div>
