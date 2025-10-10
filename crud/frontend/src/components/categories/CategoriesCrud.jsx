@@ -53,7 +53,7 @@ export default function CategoriesCrud() {
 
   return (
     <Main {...headerProps}>
-      <ToastContainer theme="light" position="bottom-right" />
+      <ToastContainer theme="light" position="top-center" />
 
       {/* Card de nova categoria */}
       <motion.div

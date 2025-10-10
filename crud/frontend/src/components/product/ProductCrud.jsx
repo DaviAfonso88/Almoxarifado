@@ -34,18 +34,17 @@ export default function ProductCrud() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([api.get("/products"), api.get("/categories")])
-      .then(([productsResp, categoriesResp]) => {
+    setLoading();
+    Promise.all([api.get("/products"), api.get("/categories")]).then(
+      ([productsResp, categoriesResp]) => {
         const products = productsResp.data.map((p) => ({
           ...p,
           minStock: p.minstock,
         }));
         setList(products);
         setCategories(categoriesResp.data);
-      })
-      .catch(() => toast.error("Erro ao carregar produtos ou categorias"))
-      .finally(() => setLoading(false));
+      }
+    );
   }, []);
 
   function load(product) {
@@ -68,7 +67,11 @@ export default function ProductCrud() {
       ...prev,
       [name]: value,
     }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (errors[name])
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
   }
 
   function validate() {
@@ -443,7 +446,7 @@ export default function ProductCrud() {
 
   return (
     <Main {...headerProps}>
-      <ToastContainer theme="light" position="bottom-right" />
+      <ToastContainer theme="light" position="top-center" />
 
       {loading ? (
         <motion.div
